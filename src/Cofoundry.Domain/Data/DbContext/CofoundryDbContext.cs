@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using Cofoundry.Core;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Cofoundry.Core.EntityFramework;
+using Cofoundry.Domain.Data.DbContext;
 
 namespace Cofoundry.Domain.Data
 {
@@ -40,6 +41,11 @@ namespace Cofoundry.Domain.Data
                 .MapCofoundryContent()
                 .ApplyConfiguration(new SettingMap())
                 .ApplyConfiguration(new RewriteRuleMap())
+                .HasDbFunction(typeof(SqlServerJsonExtension)
+                                .GetMethod(nameof(SqlServerJsonExtension.JsonValue)))
+                    .HasSchema("")
+                    .HasName("JSON_VALUE")
+                    
                 ;
         }
 
