@@ -1,7 +1,6 @@
 ﻿using Cofoundry.Core;
 using Cofoundry.Domain.CQS;
 using Cofoundry.Domain.Data;
-using Cofoundry.Domain.Data.DbContext;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
@@ -10,7 +9,7 @@ using System.Linq.Expressions;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Cofoundry.Domain.Domain.CustomEntities.Queries
+namespace Cofoundry.Domain
 {
     public class SearchCustomEntitiesQueryHandler<T>
         : IAsyncQueryHandler<SearchCustomEntitiesQuery<T>, PagedQueryResult<CustomEntityRenderSummary>>

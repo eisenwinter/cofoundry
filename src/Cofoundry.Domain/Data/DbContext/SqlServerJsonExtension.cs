@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Cofoundry.Domain.Data.DbContext
+namespace Cofoundry.Domain.Data
 {
     public static class SqlServerJsonExtension
     {

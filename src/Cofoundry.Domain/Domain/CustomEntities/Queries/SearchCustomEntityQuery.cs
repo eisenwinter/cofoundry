@@ -5,10 +5,11 @@ using System.ComponentModel.DataAnnotations;
 using System.Linq.Expressions;
 using System.Text;
 
-namespace Cofoundry.Domain.Domain.CustomEntities.Queries
+namespace Cofoundry.Domain
 {
     public class SearchCustomEntitiesQuery<T> : SimplePageableQuery
         , IQuery<PagedQueryResult<CustomEntityRenderSummary>> 
+        where T : ICustomEntityDataModel
     {
 
         public SearchCustomEntitiesQuery()

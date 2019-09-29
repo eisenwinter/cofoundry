@@ -37,7 +37,7 @@ namespace Cofoundry.BasicTestSite
             var webQuery = new SearchBlogPostsQuery();
             //---------
 
-            var query = new SearchCustomEntityRenderSummariesQuery();
+            var query = new SearchCustomEntitiesQuery<BlogPostDataModel>(c => c.CategoryId == 3);
             query.CustomEntityDefinitionCode = BlogPostCustomEntityDefinition.DefinitionCode;
             query.PageNumber = webQuery.PageNumber;
             query.PageSize = 30;
@@ -51,7 +51,7 @@ namespace Cofoundry.BasicTestSite
             // Searching/filtering custom entities is not implemented yet, but it
             // is possible to build your own search index using the message handling
             // framework or writing a custom query against the UnstructuredDataDependency table
-
+         
             var entities = await _customEntityRepository.SearchCustomEntityRenderSummariesAsync(query);
             var viewModel = await MapBlogPostsAsync(entities);
 
