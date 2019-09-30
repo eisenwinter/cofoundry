@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Cofoundry.Domain.Data
 {
-    public static class SqlServerJsonExtension
+    internal static class SqlServerJsonExtension
     {
         public static string JsonValue(string column, [NotParameterized] string path)
         {

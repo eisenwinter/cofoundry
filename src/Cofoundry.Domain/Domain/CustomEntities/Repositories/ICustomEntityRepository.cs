@@ -51,7 +51,7 @@ namespace Cofoundry.Domain
 
         Task<PagedQueryResult<CustomEntityRenderSummary>> SearchCustomEntityRenderSummariesAsync(SearchCustomEntityRenderSummariesQuery query, IExecutionContext executionContext = null);
 
-        Task<PagedQueryResult<CustomEntityRenderSummary>> SearchCustomEntityRenderSummariesAsync<T>(SearchCustomEntitiesQuery<T> query, IExecutionContext executionContext = null) where T : ICustomEntityDataModel;
+        Task<PagedQueryResult<CustomEntityRenderSummary>> SearchCustomEntityRenderSummariesAsync(SearchCustomEntitiesQuery query, IExecutionContext executionContext = null);
 
         Task<ICollection<CustomEntityRenderSummary>> GetCustomEntityRenderSummariesByDefinitionCodeAsync(GetCustomEntityRenderSummariesByDefinitionCodeQuery query, IExecutionContext executionContext = null);
 

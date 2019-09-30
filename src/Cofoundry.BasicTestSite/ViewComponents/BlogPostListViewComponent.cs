@@ -37,11 +37,13 @@ namespace Cofoundry.BasicTestSite
             var webQuery = new SearchBlogPostsQuery();
             //---------
 
-            var query = new SearchCustomEntitiesQuery<BlogPostDataModel>(c => c.CategoryId == 3);
+            var query = new SearchCustomEntitiesQuery();
             query.CustomEntityDefinitionCode = BlogPostCustomEntityDefinition.DefinitionCode;
             query.PageNumber = webQuery.PageNumber;
             query.PageSize = 30;
-
+            query.CreateSearchExpression<BlogPostDataModel>(c => c.CategoryId == 1);
+            
+            
             // Publish status defaults to live, but we can use the current visual editor
             // state to allow us to show draft blog posts when previewing a draft page.
             var state = await _visualEditorStateService.GetCurrentAsync();

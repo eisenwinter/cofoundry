@@ -6,15 +6,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Linq.Expressions;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 
 namespace Cofoundry.Domain
 {
-    public class SearchCustomEntitiesQueryHandler<T>
-        : IAsyncQueryHandler<SearchCustomEntitiesQuery<T>, PagedQueryResult<CustomEntityRenderSummary>>
-        , IPermissionRestrictedQueryHandler<SearchCustomEntitiesQuery<T>, PagedQueryResult<CustomEntityRenderSummary>>
-         where T : ICustomEntityDataModel
+    public class SearchCustomEntitiesQueryHandler
+        : IAsyncQueryHandler<SearchCustomEntitiesQuery, PagedQueryResult<CustomEntityRenderSummary>>
+        , IPermissionRestrictedQueryHandler<SearchCustomEntitiesQuery, PagedQueryResult<CustomEntityRenderSummary>>
+
     {
         private readonly CofoundryDbContext _dbContext;
         private readonly ICustomEntityDefinitionRepository _customEntityDefinitionRepository;
@@ -32,7 +33,7 @@ namespace Cofoundry.Domain
         }
 
 
-        public async Task<PagedQueryResult<CustomEntityRenderSummary>> ExecuteAsync(SearchCustomEntitiesQuery<T> query, IExecutionContext executionContext)
+        public async Task<PagedQueryResult<CustomEntityRenderSummary>> ExecuteAsync(SearchCustomEntitiesQuery query, IExecutionContext executionContext)
         {
             var dbPagedResult = await GetQueryAsync(query, executionContext);
 
@@ -41,7 +42,7 @@ namespace Cofoundry.Domain
             return dbPagedResult.ChangeType(results);
         }
 
-        private async Task<PagedQueryResult<CustomEntityVersion>> GetQueryAsync(SearchCustomEntitiesQuery<T> query, IExecutionContext executionContext)
+        private async Task<PagedQueryResult<CustomEntityVersion>> GetQueryAsync(SearchCustomEntitiesQuery query, IExecutionContext executionContext)
         {
             var definition = _customEntityDefinitionRepository.GetByCode(query.CustomEntityDefinitionCode);
             EntityNotFoundException.ThrowIfNull(definition, query.CustomEntityDefinitionCode);
@@ -62,11 +63,12 @@ namespace Cofoundry.Domain
             {
                 dbQuery = dbQuery.Where(p => !p.CustomEntity.LocaleId.HasValue);
             }
-
-            JsonValueModifier jsonValueModifier = new JsonValueModifier();
+          
+            var jsonValueModifier = new JsonValueModifier<CustomEntityPublishStatusQuery>(c => c.CustomEntityVersion.SerializedData);
+            var queryResult = jsonValueModifier.Visit(query.RawSearchExpression());
             var translatedQuery = 
-                (Expression<Func<CustomEntityPublishStatusQuery,bool>>) 
-                jsonValueModifier.Visit(query.SearchExpression);
+                (Expression<Func<CustomEntityPublishStatusQuery,bool>>) queryResult
+              ;
 
             dbQuery = dbQuery
                 .Where(translatedQuery);
@@ -81,7 +83,7 @@ namespace Cofoundry.Domain
         }
 
 
-        public IEnumerable<IPermissionApplication> GetPermissions(SearchCustomEntitiesQuery<T> query)
+        public IEnumerable<IPermissionApplication> GetPermissions(SearchCustomEntitiesQuery query)
         {
             var definition = _customEntityDefinitionRepository.GetByCode(query.CustomEntityDefinitionCode);
             EntityNotFoundException.ThrowIfNull(definition, query.CustomEntityDefinitionCode);
@@ -89,18 +91,51 @@ namespace Cofoundry.Domain
             yield return new CustomEntityReadPermission(definition);
         }
 
-        private class JsonValueModifier : ExpressionVisitor
+        private class JsonValueModifier<TEntity> : ExpressionVisitor
         {
-            //ToDo: implement
-            //translate anything in the form a => a.Something == x
-            //into p = > SqlServerJsonExtension.JsonValue(p.CustomEntityVersion.SerializedData, "Something") == "x"
-            //so basically rebuild the input query to a new one using the json function 
-            public override Expression Visit(Expression node)
+            readonly Dictionary<Type, string> typesToConvert = new Dictionary<Type, string>
+                {
+                    { typeof(int), nameof(Convert.ToInt32) },
+                    { typeof(long), nameof(Convert.ToInt64) },
+                    { typeof(decimal), nameof(Convert.ToDecimal) },
+                    { typeof(double), nameof(Convert.ToDouble) },
+                    { typeof(float), nameof(Convert.ToSingle) },
+                    { typeof(bool), nameof(Convert.ToBoolean) }
+                };
+
+            readonly ParameterExpression parameterExpression;
+            readonly MemberExpression memberExpression;
+
+            public JsonValueModifier(Expression<Func<TEntity, string>> expr)
             {
-                throw new NotImplementedException();
-               
+                var casted = (MemberExpression)expr.Body;
+                if (!expr.Parameters.Any()) throw new ArgumentException();
+                parameterExpression = expr.Parameters.First();
+                memberExpression = casted; 
             }
 
+            protected override Expression VisitLambda<T>(Expression<T> node)
+            {
+                return Expression.Lambda(Visit(node.Body), parameterExpression);
+            }
+
+            protected override Expression VisitMember(MemberExpression node)
+            {
+                ConstantExpression constantExpression = Expression.Constant($"$.{Char.ToLower(node.Member.Name[0])}{node.Member.Name.Substring(1)}");
+                if (typesToConvert.TryGetValue(((PropertyInfo)node.Member).PropertyType, out string convertFunc))
+                {
+                    var call = Expression.Call(typeof(SqlServerJsonExtension)
+                        .GetMethod(nameof(SqlServerJsonExtension.JsonValue)), memberExpression, constantExpression);
+                    return Expression.Call(typeof(Convert).GetMethod(convertFunc, new Type[] { typeof(string) }), call);
+                }
+                return Expression.Call(typeof(SqlServerJsonExtension)
+                    .GetMethod(nameof(SqlServerJsonExtension.JsonValue)), memberExpression, constantExpression);
+            }
+
+            protected override Expression VisitParameter(ParameterExpression node)
+            {
+                return Expression.Parameter(typeof(TEntity), node.Name);
+            }
         }
 
     }

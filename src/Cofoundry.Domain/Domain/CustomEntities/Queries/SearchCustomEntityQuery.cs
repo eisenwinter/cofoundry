@@ -2,24 +2,23 @@
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 using System.Linq.Expressions;
 using System.Text;
 
 namespace Cofoundry.Domain
 {
-    public class SearchCustomEntitiesQuery<T> : SimplePageableQuery
-        , IQuery<PagedQueryResult<CustomEntityRenderSummary>> 
-        where T : ICustomEntityDataModel
+    public class SearchCustomEntitiesQuery : SimplePageableQuery
+        , IQuery<PagedQueryResult<CustomEntityRenderSummary>>
     {
 
-        public SearchCustomEntitiesQuery()
-        {
+        protected Type _typeOfCustomEntityDataModel;
+        protected Expression _searchExpression;
 
-        }
 
-        public SearchCustomEntitiesQuery(Expression<Func<T, bool>> expression)
+        public Type CustomEntityDataModelType
         {
-            SearchExpression = expression;
+            get => _typeOfCustomEntityDataModel;
         }
 
         [MaxLength(6)]
@@ -30,6 +29,7 @@ namespace Cofoundry.Domain
 
         public CustomEntityQuerySortType SortBy { get; set; }
 
+
         /// <summary>
         /// Locale id to filter the results by, if null then only entities
         /// with a null locale are shown
@@ -38,6 +38,16 @@ namespace Cofoundry.Domain
 
         public PublishStatusQuery PublishStatus { get; set; }
 
-        public Expression<Func<T, bool>> SearchExpression { get; set; }
+        public Expression RawSearchExpression()
+        {
+            return _searchExpression;
+        }
+
+        public void CreateSearchExpression<T>(Expression<Func<T, bool>> expr) where T : ICustomEntityDataModel
+        {
+            _searchExpression = expr;
+        }
+
     }
+
 }
