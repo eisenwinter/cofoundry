@@ -15,11 +15,11 @@ namespace Cofoundry.Domain
             if(result != null)
             {
                 if (specifications.Count() == 1) return result.RawExpression;
-                var expression = result.RawExpression;
+                var expression = ((LambdaExpression)result.RawExpression).Body;
                 var parameter = ((LambdaExpression)result.RawExpression).Parameters.Single();
                 foreach(var spec in specifications.Skip(1))
                 {
-                    expression = Expression.AndAlso(((LambdaExpression)expression).Body, ((LambdaExpression)spec.RawExpression).Body);
+                    expression = Expression.AndAlso(((BinaryExpression)expression), ((LambdaExpression)spec.RawExpression).Body);
                 }
                 expression = Expression.Lambda(expression, parameter);
                 var visitor = new ParameterSubstituteVisitor(parameter);
