@@ -12,14 +12,6 @@ namespace Cofoundry.Domain
         , IQuery<PagedQueryResult<CustomEntityRenderSummary>>
     {
 
-        protected Type _typeOfCustomEntityDataModel;
-        protected Expression _searchExpression;
-
-
-        public Type CustomEntityDataModelType
-        {
-            get => _typeOfCustomEntityDataModel;
-        }
 
         [MaxLength(6)]
         [Required]
@@ -38,15 +30,7 @@ namespace Cofoundry.Domain
 
         public PublishStatusQuery PublishStatus { get; set; }
 
-        public Expression RawSearchExpression()
-        {
-            return _searchExpression;
-        }
-
-        public void CreateSearchExpression<T>(Expression<Func<T, bool>> expr) where T : ICustomEntityDataModel
-        {
-            _searchExpression = expr;
-        }
+        public IEnumerable<ICustomEntitySearchSpecification> Specifications { get; set; }
 
     }
 

@@ -1,4 +1,5 @@
-﻿using Cofoundry.Core;
+﻿using Cofoundry.BasicTestSite.Models.BlogPost;
+using Cofoundry.Core;
 using Cofoundry.Domain;
 using Cofoundry.Web;
 using Microsoft.AspNetCore.Mvc;
@@ -41,7 +42,14 @@ namespace Cofoundry.BasicTestSite
             query.CustomEntityDefinitionCode = BlogPostCustomEntityDefinition.DefinitionCode;
             query.PageNumber = webQuery.PageNumber;
             query.PageSize = 30;
-            query.CreateSearchExpression<BlogPostDataModel>(c => c.CategoryId == 1);
+
+            var specifications = new List<ICustomEntitySearchSpecification<BlogPostDataModel>>();
+            //decide which filters to add, they all get linked by AND
+            //for OR specifications you will need to define them in the satisfied by predicate
+            specifications.Add(new BlogPostCategorySpecification(1));
+            //basically in this setup every operation thats understood by ef core / remotion can be used to query 
+            //specifications.Add(new BlogPostShortDescriptionContainsSpecification("test"));
+            query.Specifications = specifications;
             
             
             // Publish status defaults to live, but we can use the current visual editor

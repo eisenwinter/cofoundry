@@ -20,16 +20,18 @@ namespace Cofoundry.Domain
         private readonly CofoundryDbContext _dbContext;
         private readonly ICustomEntityDefinitionRepository _customEntityDefinitionRepository;
         private readonly ICustomEntityRenderSummaryMapper _customEntityRenderSummaryMapper;
-
+        private readonly ISearchSpecificationMapper<Expression> _searchSpecificationMapper;
         public SearchCustomEntitiesQueryHandler(
             CofoundryDbContext dbContext,
             ICustomEntityDefinitionRepository customEntityDefinitionRepository,
-            ICustomEntityRenderSummaryMapper customEntityRenderSummaryMapper
+            ICustomEntityRenderSummaryMapper customEntityRenderSummaryMapper,
+            ISearchSpecificationMapper<Expression> searchSpecificationMapper
             )
         {
             _dbContext = dbContext;
             _customEntityDefinitionRepository = customEntityDefinitionRepository;
             _customEntityRenderSummaryMapper = customEntityRenderSummaryMapper;
+            _searchSpecificationMapper = searchSpecificationMapper;
         }
 
 
@@ -63,15 +65,18 @@ namespace Cofoundry.Domain
             {
                 dbQuery = dbQuery.Where(p => !p.CustomEntity.LocaleId.HasValue);
             }
-          
-            var jsonValueModifier = new JsonValueModifier<CustomEntityPublishStatusQuery>(c => c.CustomEntityVersion.SerializedData);
-            var queryResult = jsonValueModifier.Visit(query.RawSearchExpression());
-            var translatedQuery = 
-                (Expression<Func<CustomEntityPublishStatusQuery,bool>>) queryResult
-              ;
 
-            dbQuery = dbQuery
-                .Where(translatedQuery);
+            var baseExpression = _searchSpecificationMapper.Map(query.Specifications);
+            if (baseExpression != null)
+            {
+                var jsonValueModifier = new JsonValueModifier<CustomEntityPublishStatusQuery>(c => c.CustomEntityVersion.SerializedData);
+                var queryResult = jsonValueModifier.Visit(baseExpression);
+                var translatedQuery =
+                    (Expression<Func<CustomEntityPublishStatusQuery, bool>>)queryResult
+                  ;
+
+                dbQuery = dbQuery.Where(translatedQuery);
+            }
 
             var dbPagedResult = await dbQuery
                 .SortBy(definition, query.SortBy, query.SortDirection)
@@ -111,7 +116,7 @@ namespace Cofoundry.Domain
                 var casted = (MemberExpression)expr.Body;
                 if (!expr.Parameters.Any()) throw new ArgumentException();
                 parameterExpression = expr.Parameters.First();
-                memberExpression = casted; 
+                memberExpression = casted;
             }
 
             protected override Expression VisitLambda<T>(Expression<T> node)
@@ -121,13 +126,21 @@ namespace Cofoundry.Domain
 
             protected override Expression VisitMember(MemberExpression node)
             {
-                ConstantExpression constantExpression = Expression.Constant($"$.{Char.ToLower(node.Member.Name[0])}{node.Member.Name.Substring(1)}");
-                if (typesToConvert.TryGetValue(((PropertyInfo)node.Member).PropertyType, out string convertFunc))
+                if (node.Expression != null && node.Expression.NodeType == ExpressionType.Constant)
                 {
-                    var call = Expression.Call(typeof(SqlServerJsonExtension)
-                        .GetMethod(nameof(SqlServerJsonExtension.JsonValue)), memberExpression, constantExpression);
-                    return Expression.Call(typeof(Convert).GetMethod(convertFunc, new Type[] { typeof(string) }), call);
+                    return node;
                 }
+                ConstantExpression constantExpression = Expression.Constant($"$.{Char.ToLower(node.Member.Name[0])}{node.Member.Name.Substring(1)}");
+                if (node.Member is PropertyInfo)
+                {
+                    if (typesToConvert.TryGetValue(((PropertyInfo)node.Member).PropertyType, out string convertFunc))
+                    {
+                        var call = Expression.Call(typeof(SqlServerJsonExtension)
+                            .GetMethod(nameof(SqlServerJsonExtension.JsonValue)), memberExpression, constantExpression);
+                        return Expression.Call(typeof(Convert).GetMethod(convertFunc, new Type[] { typeof(string) }), call);
+                    }
+                }
+
                 return Expression.Call(typeof(SqlServerJsonExtension)
                     .GetMethod(nameof(SqlServerJsonExtension.JsonValue)), memberExpression, constantExpression);
             }
